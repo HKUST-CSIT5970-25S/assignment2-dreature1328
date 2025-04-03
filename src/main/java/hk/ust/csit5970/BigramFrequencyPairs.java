@@ -2,6 +2,8 @@ package hk.ust.csit5970;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -49,16 +51,28 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 				throws IOException, InterruptedException {
 			String line = ((Text) value).toString();
 			String[] words = line.trim().split("\\s+");
-			
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+
+			// TODO
+			for (int i = 0; i < words.length - 1; i++) {
+				// 统一为小写
+				String word1 = words[i].replaceAll("[^a-zA-Z]", "").toLowerCase();
+				String word2 = words[i+1].replaceAll("[^a-zA-Z]", "").toLowerCase();
+				if (word1.isEmpty() || word2.isEmpty()) continue;
+				// 设置单词并计数
+				BIGRAM.set(word1, "*");
+				context.write(BIGRAM, ONE);
+				// 设置二元词组并计数
+				BIGRAM.set(word1, word2);
+				context.write(BIGRAM, ONE);
+			}
 		}
 	}
 
 	/*
 	 * TODO: Write your reducer here.
 	 */
+	private static Map<String, Float> totalCounts = new HashMap<String, Float>();
+
 	private static class MyReducer extends
 			Reducer<PairOfStrings, IntWritable, PairOfStrings, FloatWritable> {
 
@@ -68,9 +82,28 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 		@Override
 		public void reduce(PairOfStrings key, Iterable<IntWritable> values,
 				Context context) throws IOException, InterruptedException {
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+
+			// TODO
+			String left = key.getLeftElement();
+			String right = key.getRightElement();
+
+			int sum = 0;
+			for (IntWritable val : values) {
+				sum += val.get();
+			}
+
+			if (right.isEmpty()) {
+				totalCounts.put(left, (float) sum);
+				// Output total count
+				context.write(new PairOfStrings(left, ""), new FloatWritable(sum));
+			} else {
+				Float total = totalCounts.get(left);
+				if (total != null && total != 0) {
+					float freq = sum / total;
+					VALUE.set(freq);
+					context.write(key, VALUE);
+				}
+			}
 		}
 	}
 	
@@ -81,9 +114,15 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 		@Override
 		public void reduce(PairOfStrings key, Iterable<IntWritable> values,
 				Context context) throws IOException, InterruptedException {
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+
+			// TODO
+			// 累加
+			int sum = 0;
+			for (IntWritable value : values) {
+				sum += value.get();
+			}
+			SUM.set(sum);
+			context.write(key, SUM);
 		}
 	}
 

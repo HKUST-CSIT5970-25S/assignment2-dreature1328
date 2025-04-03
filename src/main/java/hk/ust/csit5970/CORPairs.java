@@ -50,9 +50,11 @@ public class CORPairs extends Configured implements Tool {
 			// Please use this tokenizer! DO NOT implement a tokenizer by yourself!
 			String clean_doc = value.toString().replaceAll("[^a-z A-Z]", " ");
 			StringTokenizer doc_tokenizer = new StringTokenizer(clean_doc);
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+			// TODO
+			while (doc_tokenizer.hasMoreTokens()) {
+				String word = doc_tokenizer.nextToken();
+				context.write(new Text(word), new IntWritable(1));
+			}
 		}
 	}
 
@@ -63,9 +65,12 @@ public class CORPairs extends Configured implements Tool {
 			Reducer<Text, IntWritable, Text, IntWritable> {
 		@Override
 		public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+			// TODO
+			int sum = 0;
+			for (IntWritable val : values) {
+				sum += val.get();
+			}
+			context.write(key, new IntWritable(sum));
 		}
 	}
 
@@ -76,11 +81,22 @@ public class CORPairs extends Configured implements Tool {
 	public static class CORPairsMapper2 extends Mapper<LongWritable, Text, PairOfStrings, IntWritable> {
 		@Override
 		protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+			Set<String> uniqueWords = new HashSet<String>();
 			// Please use this tokenizer! DO NOT implement a tokenizer by yourself!
 			StringTokenizer doc_tokenizer = new StringTokenizer(value.toString().replaceAll("[^a-z A-Z]", " "));
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+			while (doc_tokenizer.hasMoreTokens()) {
+				uniqueWords.add(doc_tokenizer.nextToken());
+			}
+			List<String> sortedWords = new ArrayList<String>(uniqueWords);
+			Collections.sort(sortedWords);
+
+			for (int i = 0; i < sortedWords.size(); i++) {
+				for (int j = i + 1; j < sortedWords.size(); j++) {
+					String a = sortedWords.get(i);
+					String b = sortedWords.get(j);
+					context.write(new PairOfStrings(a, b), new IntWritable(1));
+				}
+			}
 		}
 	}
 
@@ -90,9 +106,12 @@ public class CORPairs extends Configured implements Tool {
 	private static class CORPairsCombiner2 extends Reducer<PairOfStrings, IntWritable, PairOfStrings, IntWritable> {
 		@Override
 		protected void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+			// TODO
+			int sum = 0;
+			for (IntWritable val : values) {
+				sum += val.get();
+			}
+			context.write(key, new IntWritable(sum));
 		}
 	}
 
@@ -142,9 +161,21 @@ public class CORPairs extends Configured implements Tool {
 		 */
 		@Override
 		protected void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+			// TODO
+			int freqAll = 0;
+			for (IntWritable val : values) {
+				freqAll += val.get();
+			}
+
+			String word1 = key.getLeftElement();
+			String word2 = key.getRightElement();
+			Integer freq1 = word_total_map.get(word1);
+			Integer freq2 = word_total_map.get(word2);
+
+			if (freq1 == null || freq2 == null || freq1 == 0 || freq2 == 0) return;
+
+			double cor = (double) freqAll / (freq1 * freq2);
+			context.write(key, new DoubleWritable(cor));
 		}
 	}
 

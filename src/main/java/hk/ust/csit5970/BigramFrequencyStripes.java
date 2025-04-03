@@ -2,6 +2,7 @@ package hk.ust.csit5970;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
@@ -51,9 +52,18 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			String line = ((Text) value).toString();
 			String[] words = line.trim().split("\\s+");
 
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+			// TODO
+			for (int i = 0; i < words.length - 1; i++) {
+				String word1 = words[i];
+				String word2 = words[i + 1];
+
+				// 初始化 STRIPE
+				STRIPE.clear();
+				STRIPE.increment(word2, 1);
+
+				KEY.set(word1);
+				context.write(KEY, STRIPE);
+			}
 		}
 	}
 
@@ -68,13 +78,41 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 		private final static PairOfStrings BIGRAM = new PairOfStrings();
 		private final static FloatWritable FREQ = new FloatWritable();
 
+		private final Map<String, Integer> totalCounts = new HashMap<String, Integer>();
+
 		@Override
 		public void reduce(Text key,
 				Iterable<HashMapStringIntWritable> stripes, Context context)
 				throws IOException, InterruptedException {
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+
+			// TODO
+			HashMapStringIntWritable sumStripe = new HashMapStringIntWritable();
+
+			// 合并所有条纹
+			for (HashMapStringIntWritable stripe : stripes) {
+				for (Map.Entry<String, Integer> entry : stripe.entrySet()) {
+					String term = entry.getKey();
+					int count = entry.getValue();
+					sumStripe.increment(term, count);
+				}
+			}
+
+			String current = key.toString();
+			int total = 0;
+			for (Map.Entry<String, Integer> entry : sumStripe.entrySet()) {
+				total += entry.getValue(); // 累加所有值得到总次数
+			}
+			totalCounts.put(current, total);
+
+			for (Map.Entry<String, Integer> entry : sumStripe.entrySet()) {
+				String term = entry.getKey();
+				int count = entry.getValue();
+
+				float freq = (float) count / total;
+				BIGRAM.set(current, term);
+				FREQ.set(freq);
+				context.write(BIGRAM, FREQ);
+			}
 		}
 	}
 
@@ -91,9 +129,18 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 		public void reduce(Text key,
 				Iterable<HashMapStringIntWritable> stripes, Context context)
 				throws IOException, InterruptedException {
-			/*
-			 * TODO: Your implementation goes here.
-			 */
+
+			SUM_STRIPES.clear();
+
+			for (HashMapStringIntWritable stripe : stripes) {
+				for (Map.Entry<String, Integer> entry : stripe.entrySet()) {
+					String term = entry.getKey();
+					int count = entry.getValue();
+					SUM_STRIPES.increment(term, count);
+				}
+			}
+
+			context.write(key, SUM_STRIPES);
 		}
 	}
 
