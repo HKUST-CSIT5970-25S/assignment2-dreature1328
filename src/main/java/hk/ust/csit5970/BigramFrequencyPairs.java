@@ -94,7 +94,6 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 
 			if (right.isEmpty()) {
 				totalCounts.put(left, (float) sum);
-				// Output total count
 				context.write(new PairOfStrings(left, ""), new FloatWritable(sum));
 			} else {
 				Float total = totalCounts.get(left);

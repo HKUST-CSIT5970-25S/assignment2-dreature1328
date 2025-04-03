@@ -78,17 +78,16 @@ public class CORStripes extends Configured implements Tool {
 				sorted_word_set.add(doc_tokenizers.nextToken());
 			}
 			// TODO
-			List<String> words = new ArrayList<String>(sorted_word_set);
-			for (int i = 0; i < words.size(); i++) {
-				String a = words.get(i);
-				MapWritable stripe = new MapWritable();
-				for (int j = i + 1; j < words.size(); j++) {
-					String b = words.get(j);
-					stripe.put(new Text(b), new IntWritable(1));
+			List<String> sortedTerms = new ArrayList<String>(sorted_word_set);
+			for (int currentIndex = 0; currentIndex < sortedTerms.size(); currentIndex++) {
+				String currentTerm = sortedTerms.get(currentIndex);
+				MapWritable coOccurrenceMap = new MapWritable();
+				for (int subsequentIndex = currentIndex + 1; subsequentIndex < sortedTerms.size(); subsequentIndex++) {
+					String subsequentTerm = sortedTerms.get(subsequentIndex);
+					coOccurrenceMap.put(new Text(subsequentTerm), new IntWritable(1));
 				}
-				if (!stripe.isEmpty()) {
-					context.write(new Text(a), stripe);
-				}
+				if (coOccurrenceMap.size() > 0)
+					context.write(new Text(currentTerm), coOccurrenceMap);
 			}
 		}
 	}
@@ -166,34 +165,34 @@ public class CORStripes extends Configured implements Tool {
 		 */
 		@Override
 		protected void reduce(Text key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
-			MapWritable finalStripe = new MapWritable();
-			for (MapWritable stripe : values) {
-				for (Map.Entry<Writable, Writable> entry : stripe.entrySet()) {
-					Text b = (Text) entry.getKey();
-					IntWritable count = (IntWritable) entry.getValue();
-					IntWritable existingCount = (IntWritable) finalStripe.get(b);
-					if (existingCount == null) {
-						finalStripe.put(b, new IntWritable(count.get()));
-					} else {
-						finalStripe.put(b, new IntWritable(existingCount.get() + count.get()));
-					}
+			MapWritable mergedStripe = new MapWritable();
+
+			for (MapWritable partialStripe : values) {
+				// 处理当前条纹中的每个词对
+				for (Map.Entry<Writable, Writable> entry : partialStripe.entrySet()) {
+					Text term = (Text) entry.getKey();
+					IntWritable partialCount = (IntWritable) entry.getValue();
+					IntWritable existingCount = (IntWritable) mergedStripe.get(term);
+					int updatedCount = partialCount.get() + (existingCount != null ? existingCount.get() : 0);
+					mergedStripe.put(term, new IntWritable(updatedCount));
 				}
 			}
-			String a = key.toString();
-			Integer freqA = word_total_map.get(a);
-			if (freqA == null || freqA == 0) {
-				return;
-			}
-			for (Map.Entry<Writable, Writable> entry : finalStripe.entrySet()) {
-				Text bText = (Text) entry.getKey();
-				IntWritable freqABWritable = (IntWritable) entry.getValue();
-				String b = bText.toString();
-				Integer freqB = word_total_map.get(b);
-				if (freqB == null || freqB == 0) {
+			String currentTerm = key.toString();
+			Integer totalFreqA = word_total_map.get(currentTerm);
+			if (totalFreqA == null || totalFreqA == 0) { return; }
+			for (Map.Entry<Writable, Writable> entry : mergedStripe.entrySet()) {
+				Text coTerm = (Text) entry.getKey();
+				IntWritable coFrequency = (IntWritable) entry.getValue();
+				String coTermStr = coTerm.toString();
+				Integer totalFreqB = word_total_map.get(coTermStr);
+				if (totalFreqB == null || totalFreqB == 0) {
 					continue;
 				}
-				double cor = (double) freqABWritable.get() / (freqA * freqB);
-				context.write(new PairOfStrings(a, b), new DoubleWritable(cor));
+				double corValue = (double) coFrequency.get() / (totalFreqA * totalFreqB);
+				context.write(
+						new PairOfStrings(currentTerm, coTermStr),
+						new DoubleWritable(corValue)
+				);
 			}
 		}
 	}

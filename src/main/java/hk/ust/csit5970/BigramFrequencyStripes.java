@@ -87,7 +87,6 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 
 			// TODO
 			HashMapStringIntWritable sumStripe = new HashMapStringIntWritable();
-
 			// 合并所有条纹
 			for (HashMapStringIntWritable stripe : stripes) {
 				for (Map.Entry<String, Integer> entry : stripe.entrySet()) {
@@ -96,18 +95,16 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 					sumStripe.increment(term, count);
 				}
 			}
-
 			String current = key.toString();
 			int total = 0;
+			// 累加所有值得到总次数
 			for (Map.Entry<String, Integer> entry : sumStripe.entrySet()) {
-				total += entry.getValue(); // 累加所有值得到总次数
+				total += entry.getValue();
 			}
 			totalCounts.put(current, total);
-
 			for (Map.Entry<String, Integer> entry : sumStripe.entrySet()) {
 				String term = entry.getKey();
 				int count = entry.getValue();
-
 				float freq = (float) count / total;
 				BIGRAM.set(current, term);
 				FREQ.set(freq);
