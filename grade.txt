@@ -1,0 +1,5 @@
+====BigramFrePairs==== Mark: 0/2: list index out of range
+====BigramFreStripes==== Mark: 0/2 [line 1: words <['the', 'wind', '0.037037037']> != <['the', '', '27.0']>]
+====CorPairs==== Mark: 3/3
+====CorStrip==== Mark: 3/3
+====Total Mark: 6/10
